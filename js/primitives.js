@@ -59,6 +59,7 @@ class Point {
 class Edge {
     constructor(p1, p2) {
         this.points = [p1, p2];
+        this.polys = [];
     }
 
     draw(ctx) {
@@ -68,6 +69,16 @@ class Edge {
         ctx.stroke();
         this.points[0].draw(ctx);
         this.points[1].draw(ctx);
+    }
+
+    equals(e) {
+        if (this.points[0].nearby(e.points[0]) && this.points[1].nearby(e.points[1])) {
+            return true;
+        }
+        if (this.points[1].nearby(e.points[0]) && this.points[0].nearby(e.points[1])) {
+            return true;
+        }
+        return false;
     }
 }
 
@@ -100,6 +111,7 @@ class Polygon {
             const d2 = d.mult(EDGE_LEN/dm);
             const np = d2.rotate(theta).add(ep);
             const ne = new Edge(ep.clone(), np.clone());
+            ne.polys = [this];
             this.edges.push(ne);
             ep = np;
         }
