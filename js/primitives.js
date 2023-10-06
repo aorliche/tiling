@@ -1,5 +1,5 @@
 
-export {Point, Edge, Polygon, polyDistFromN, randomEdgePoint};
+export {Point, Edge, Polygon, polyDistFromN, randomEdgePoint, thetaFromN};
 
 let EDGE_LEN = 40;
 
@@ -82,6 +82,10 @@ class Edge {
     }
 }
 
+function thetaFromN(n) {
+    return Math.PI - 2*Math.PI/n;
+}
+
 function polyDistFromN(n) {
     const theta = 2*Math.PI/n;
     console.log(theta);
@@ -97,9 +101,12 @@ function randomEdgePoint(cp, n) {
     return p;
 }
 
+let polyCount = 0;
+
 class Polygon {
     // Center point, edge point, number of edges
     constructor(cp, ep, n) {
+        this.id = polyCount++;
         this.n = n;
         this.cp = cp;
         this.points = [ep];
