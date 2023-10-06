@@ -11,6 +11,9 @@ window.addEventListener('load', () => {
     const p = new Polygon(cp, ep, 6);
     board.addPoly(p);*/
     board.place666();
+    board.place666();
+    board.place666();
+    board.place666();
     board.repaint();
     board.nextFromCenter();
 });

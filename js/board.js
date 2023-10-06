@@ -102,6 +102,67 @@ class Board {
                 cps.forEach(cp => {
                     this.addPoly(new Polygon(cp, p, 6));
                 });
+                return;
+            } 
+            // Get free angles around point
+            // Choose a start point
+            // Get all taken and free angles from 0 to 2pi
+            const starts = [];
+            const ends = [];
+            p.polys.forEach(poly => {
+                const [p0, p1] = poly.pointsNextTo(p);
+                const d0 = p0.sub(p);
+                const d1 = p1.sub(p);
+                let t0 = Math.atan2(d0.y, d0.x);
+                let t1 = Math.atan2(d1.y, d1.x);
+                if (t0 < 0) {
+                    t0 += 2*Math.PI;
+                }
+                if (t1 < 0) {
+                    t1 += 2*Math.PI;
+                }
+                // Wraparound
+                // Assume no polys take more than pi radians (infinite circle)
+                if (Math.abs(t0 - t1) > Math.PI) {
+                    if (t0 < Math.PI) {
+                        t0 += 2*Math.PI;
+                    } else {
+                        t1 += 2*Math.PI;
+                    }
+                }
+                if (t1 < t0) {
+                    [t0, t1] = [t1, t0];
+                }
+                starts.push(t0);
+                ends.push(t1);
+            });
+            starts.sort((a, b) => a-b);
+            ends.sort((a, b) => a-b);
+            console.log(p, starts, ends);
+            for (let i=0; i<ends.length; i++) {
+                let td;
+                if (i == ends.length-1) {
+                    td = starts[0] + 2*Math.PI - ends[i];
+                } else {
+                    td = starts[i+1] - ends[i];
+                }
+                if (nearby(td, 0)) {
+                    continue;
+                }
+                if (nearby(td, 2*Math.PI/3)) {
+                    const t = ends[i] + Math.PI/3;
+                    const cp = new Point(p.x+d*Math.cos(t), p.y+d*Math.sin(t));
+                    this.addPoly(new Polygon(cp, p, 6));
+                } else if (nearby(td, 4*Math.PI/3)) {
+                    const t0 = ends[i] + Math.PI/3;
+                    const t1 = ends[i+1] + Math.PI;
+                    const cp0 = new Point(p.x+d*Math.cos(t0), p.y+d*Math.sin(t0));
+                    const cp1 = new Point(p.x+d*Math.cos(t1), p.y+d*Math.sin(t1));
+                    this.addPoly(new Polygon(cp0, p, 6));
+                    this.addPoly(new Polygon(cp1, p, 6));
+                } else {
+                    console.log("Fail", td);
+                }
             }
         });
     }

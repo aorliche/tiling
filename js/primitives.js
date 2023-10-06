@@ -128,4 +128,16 @@ class Polygon {
         this.edges.forEach(e => e.draw(ctx));
         this.cp.draw(ctx);
     }
+
+    pointsNextTo(p) {
+        const ps = [];
+        this.edges.forEach(e => {
+            if (e.points[0].nearby(p)) {
+                ps.push(e.points[1]);
+            } else if (e.points[1].nearby(p)) {
+                ps.push(e.points[0]);
+            }
+        });
+        return ps;
+    }
 }
