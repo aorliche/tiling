@@ -84,9 +84,7 @@ class Board {
         return set;
     }
 
-    place666(p) {
-        const d = polyDistFromN(6);
-        const cp = new Point(this.canvas.width/2, this.canvas.height/2);
+    placeLoop(fns) {
         let points;
         if (this.points.length == 0) {
             points = [new Point(this.canvas.width/2, this.canvas.height/2)];
@@ -94,77 +92,174 @@ class Board {
         } else {
             points = this.nextFromCenter();
         }
-        points.forEach(p => {
-            if (p.polys.length == 0) {
-                const cps = [new Point(cp.x+d, cp.y), 
-                    new Point(cp.x+d*Math.cos(2*Math.PI/3), cp.y+d*Math.sin(2*Math.PI/3)),
-                    new Point(cp.x+d*Math.cos(4*Math.PI/3), cp.y+d*Math.sin(4*Math.PI/3))];
-                cps.forEach(cp => {
-                    this.addPoly(new Polygon(cp, p, 6));
-                });
-                return;
-            } 
-            // Get free angles around point
-            // Choose a start point
-            // Get all taken and free angles from 0 to 2pi
-            const starts = [];
-            const ends = [];
-            p.polys.forEach(poly => {
-                const [p0, p1] = poly.pointsNextTo(p);
-                const d0 = p0.sub(p);
-                const d1 = p1.sub(p);
-                let t0 = Math.atan2(d0.y, d0.x);
-                let t1 = Math.atan2(d1.y, d1.x);
-                if (t0 < 0) {
-                    t0 += 2*Math.PI;
-                }
-                if (t1 < 0) {
-                    t1 += 2*Math.PI;
-                }
-                // Wraparound
-                // Assume no polys take more than pi radians (infinite circle)
-                if (Math.abs(t0 - t1) > Math.PI) {
-                    if (t0 < Math.PI) {
-                        t0 += 2*Math.PI;
-                    } else {
-                        t1 += 2*Math.PI;
-                    }
-                }
-                if (t1 < t0) {
-                    [t0, t1] = [t1, t0];
-                }
-                starts.push(t0);
-                ends.push(t1);
-            });
-            starts.sort((a, b) => a-b);
-            ends.sort((a, b) => a-b);
-            console.log(p, starts, ends);
-            for (let i=0; i<ends.length; i++) {
-                let td;
-                if (i == ends.length-1) {
-                    td = starts[0] + 2*Math.PI - ends[i];
-                } else {
-                    td = starts[i+1] - ends[i];
-                }
-                if (nearby(td, 0)) {
-                    continue;
-                }
-                if (nearby(td, 2*Math.PI/3)) {
-                    const t = ends[i] + Math.PI/3;
-                    const cp = new Point(p.x+d*Math.cos(t), p.y+d*Math.sin(t));
-                    this.addPoly(new Polygon(cp, p, 6));
-                } else if (nearby(td, 4*Math.PI/3)) {
-                    const t0 = ends[i] + Math.PI/3;
-                    const t1 = ends[i+1] + Math.PI;
-                    const cp0 = new Point(p.x+d*Math.cos(t0), p.y+d*Math.sin(t0));
-                    const cp1 = new Point(p.x+d*Math.cos(t1), p.y+d*Math.sin(t1));
-                    this.addPoly(new Polygon(cp0, p, 6));
-                    this.addPoly(new Polygon(cp1, p, 6));
-                } else {
-                    console.log("Fail", td);
+        for (let offset=0; offset<fns.length; offset++) {
+            let allgood = true;
+            for (let i=0; i<points.length; i++) {
+                const j = (i+offset) % fns.length;
+                const fn = fns[j];
+                if (!fn(points[i])) {
+                    allgood = false;
+                    break;
                 }
             }
+            if (allgood) {
+                for (let k=0; k<points.length; k++) {
+                    const j = (k+offset) % fns.length;
+                    const fn = fns[j];
+                    if (!fn(points[k], true)) {
+                        console.log('Failed');
+                        throw 'bad';
+                    }
+                }
+                return;
+            }
+        }
+        console.log('No good placement found');
+    }
+
+    // Get free angles around point
+    // Choose a start point
+    // Get all taken and free angles from 0 to 2pi
+    getFreeAngles(p) {
+        const starts = [];
+        const ends = [];
+        const free = [];
+        p.polys.forEach(poly => {
+            const [p0, p1] = poly.pointsNextTo(p);
+            const d0 = p0.sub(p);
+            const d1 = p1.sub(p);
+            let t0 = Math.atan2(d0.y, d0.x);
+            let t1 = Math.atan2(d1.y, d1.x);
+            if (t0 < 0) {
+                t0 += 2*Math.PI;
+            }
+            if (t1 < 0) {
+                t1 += 2*Math.PI;
+            }
+            // Wraparound
+            // Assume no polys take more than pi radians (infinite circle)
+            if (Math.abs(t0 - t1) > Math.PI) {
+                if (t0 < Math.PI) {
+                    t0 += 2*Math.PI;
+                } else {
+                    t1 += 2*Math.PI;
+                }
+            }
+            if (t1 < t0) {
+                [t0, t1] = [t1, t0];
+            }
+            starts.push(t0);
+            ends.push(t1);
         });
+        starts.sort((a, b) => a-b);
+        ends.sort((a, b) => a-b);
+        // Get free angles
+        for (let i=0; i<ends.length; i++) {
+            let td;
+            if (i == ends.length-1) {
+                td = starts[0] + 2*Math.PI - ends[i];
+            } else {
+                td = starts[i+1] - ends[i];
+            }
+            free.push(td);
+        }
+        return [starts, ends, free];
+    }
+    
+    place333333(p, place) {
+        const d = polyDistFromN(3);
+        let starts, ends, free;
+        // First vertex on board
+        if (p.polys.length == 0) {
+            [starts, ends, free] = [[0], [0], [2*Math.PI]];
+        // Not first vertex
+        } else {
+            [starts, ends, free] = this.getFreeAngles(p);
+        }
+        for (let i=0; i<ends.length; i++) {
+            const td = free[i];
+            if (nearby(td, 0)) {
+                continue;
+            }
+            const n = td/(Math.PI/3);
+            const N = Math.round(n);
+            if (nearby(n, N)) {
+                for (let j=0; j<N; j++) {
+                    const t = ends[i] + Math.PI/6 + j*Math.PI/3;
+                    const cp = new Point(p.x+d*Math.cos(t), p.y+d*Math.sin(t));
+                    if (place) {
+                        this.addPoly(new Polygon(cp, p, 3));
+                    }
+                }
+            } else {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    place4444(p, place) {
+        const d = polyDistFromN(4);
+        let starts, ends, free;
+        // First vertex on board
+        if (p.polys.length == 0) {
+            [starts, ends, free] = [[0], [0], [2*Math.PI]];
+        // Not first vertex
+        } else {
+            [starts, ends, free] = this.getFreeAngles(p);
+        }
+        for (let i=0; i<ends.length; i++) {
+            const td = free[i];
+            if (nearby(td, 0)) {
+                continue;
+            }
+            const n = td/(Math.PI/2);
+            if (nearby(n, 1) || nearby(n, 2) || nearby(n, 3) || nearby(n, 4)) {
+                const N = Math.round(n);
+                for (let j=0; j<N; j++) {
+                    const t = ends[i] + Math.PI/4 + j*Math.PI/2;
+                    const cp = new Point(p.x+d*Math.cos(t), p.y+d*Math.sin(t));
+                    if (place) {
+                        this.addPoly(new Polygon(cp, p, 4));
+                    }
+                }
+            } else {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    place666(p, place) {
+        const d = polyDistFromN(6);
+        let starts, ends, free;
+        // First vertex on board
+        if (p.polys.length == 0) {
+            [starts, ends, free] = [[0], [0], [2*Math.PI]];
+        // Not first vertex
+        } else {
+            [starts, ends, free] = this.getFreeAngles(p);
+        }
+        for (let i=0; i<ends.length; i++) {
+            const td = free[i];
+            if (nearby(td, 0)) {
+                continue;
+            }
+            const n = td/(2*Math.PI/3);
+            if (nearby(n, 1) || nearby(n, 2) || nearby(n, 3)) {
+                const N = Math.round(n);
+                for (let j=0; j<N; j++) {
+                    const t = ends[i] + Math.PI/3 + j*2*Math.PI/3;
+                    const cp = new Point(p.x+d*Math.cos(t), p.y+d*Math.sin(t));
+                    if (place) {
+                        this.addPoly(new Polygon(cp, p, 6));
+                    }
+                }
+            } else {
+                return false;
+            }
+        }
+        return true;
     }
 
     repaint() {

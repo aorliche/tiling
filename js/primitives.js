@@ -88,9 +88,7 @@ function thetaFromN(n) {
 
 function polyDistFromN(n) {
     const theta = 2*Math.PI/n;
-    console.log(theta);
     const d = Math.sqrt(EDGE_LEN*EDGE_LEN/2/(1-Math.cos(theta)));
-    console.log(d);
     return d;
 }
 

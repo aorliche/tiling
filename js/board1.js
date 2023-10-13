@@ -10,10 +10,13 @@ window.addEventListener('load', () => {
     const ep = randomEdgePoint(cp, 6);
     const p = new Polygon(cp, ep, 6);
     board.addPoly(p);*/
-    board.place666();
-    board.place666();
-    board.place666();
-    board.place666();
+    /*board.placeLoop([(a,b) => board.place4444(a,b)]);
+    board.placeLoop([(a,b) => board.place4444(a,b)]);
+    board.placeLoop([(a,b) => board.place4444(a,b)]);*/
+    board.placeLoop([(a,b) => board.place666(a,b)]);
+    board.placeLoop([(a,b) => board.place666(a,b)]);
+    board.placeLoop([(a,b) => board.place666(a,b)]);
+    board.placeLoop([(a,b) => board.place333333(a,b)]);
+    board.placeLoop([(a,b) => board.place666(a,b)]);
     board.repaint();
-    board.nextFromCenter();
 });
