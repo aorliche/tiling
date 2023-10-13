@@ -16,7 +16,7 @@ window.addEventListener('load', () => {
     board.placeLoop([(a,b) => board.place666(a,b)]);
     board.placeLoop([(a,b) => board.place666(a,b)]);
     board.placeLoop([(a,b) => board.place666(a,b)]);
-    board.placeLoop([(a,b) => board.place333333(a,b)]);
+    board.fillLoop([(a,b) => board.fill3(a,b)]);
     board.placeLoop([(a,b) => board.place666(a,b)]);
     board.repaint();
 });

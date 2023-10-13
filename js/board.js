@@ -25,6 +25,32 @@ function pointFreeAngle(p) {
     return 2*Math.PI - sum;
 }
 
+function getStartEndAngles(poly, p) {
+    const [p0, p1] = poly.pointsNextTo(p);
+    const [d0, d1] = [p0.sub(p), p1.sub(p)];
+    let t0 = Math.atan2(d0.y, d0.x);
+    let t1 = Math.atan2(d1.y, d1.x);
+    if (t0 < 0) {
+        t0 += 2*Math.PI;
+    }
+    if (t1 < 0) {
+        t1 += 2*Math.PI;
+    }
+    // Wraparound
+    // Assume no polys take more than pi radians (infinite circle)
+    if (Math.abs(t0 - t1) > Math.PI) {
+        if (t0 < Math.PI) {
+            t0 += 2*Math.PI;
+        } else {
+            t1 += 2*Math.PI;
+        }
+    }
+    if (t1 < t0) {
+        [t0, t1] = [t1, t0];
+    }
+    return [t0, t1];
+}
+
 class Board {
     constructor(canvas) {
         this.canvas = canvas;
@@ -114,6 +140,86 @@ class Board {
                 return;
             }
         }
+    }
+
+    place666(p, place) {
+        if (p.polys.length == 0) {
+            this.fill6(p, true);
+            return;
+        }
+        const placings = [];
+        for (let i=0; i<p.polys.length; i++) {
+            if (p.polys[i].n != 6) {
+                console.log('Not 6');
+                return false;
+            }
+            const cur = p.polys[i];
+            const [cstart, cend] = getStartEndAngles(cur, p);
+            const next = p.polys[(i+1) % p.polys.length];
+            const [nstart, nend] = getStartEndAngles(next, p);
+            console.log(cstart, cend, nstart, nend);
+            let t = nstart - cend;
+            // Start always less than 2pi but end may be greater
+            if (!nearby(t, 0) && t < 0) {
+                t += 2*Math.PI;
+            }
+            const n = t/(2*Math.PI/3);
+            const N = Math.round(n);
+            console.log(cend, nstart);
+            console.log(n, N);
+            if (!nearby(n, N)) {
+                console.log("Can't place");
+                return false;
+            }
+            for (let j=0; j<N; j++) {
+                placings.push(cend + j*2*Math.PI/3);
+            }
+        }
+        if (placings.length == 0) {
+            console.log('No placings');
+            return false;
+        }
+        if (place) {
+            const d = polyDistFromN(6);
+            for (let i=0; i<placings.length; i++) {
+                const t = placings[i] + Math.PI/3;
+                const cp = new Point(p.x+d*Math.cos(t), p.y+d*Math.sin(t));
+                this.addPoly(new Polygon(cp, p, 6));
+            }
+        }
+        return true;
+    }
+
+    fillLoop(fns) {
+        let points;
+        if (this.points.length == 0) {
+            points = [new Point(this.canvas.width/2, this.canvas.height/2)];
+            points[0].polys = [];
+        } else {
+            points = this.nextFromCenter();
+        }
+        for (let offset=0; offset<fns.length; offset++) {
+            let allgood = true;
+            for (let i=0; i<points.length; i++) {
+                const j = (i+offset) % fns.length;
+                const fn = fns[j];
+                if (!fn(points[i])) {
+                    allgood = false;
+                    break;
+                }
+            }
+            if (allgood) {
+                for (let k=0; k<points.length; k++) {
+                    const j = (k+offset) % fns.length;
+                    const fn = fns[j];
+                    if (!fn(points[k], true)) {
+                        console.log('Failed');
+                        throw 'bad';
+                    }
+                }
+                return;
+            }
+        }
         console.log('No good placement found');
     }
 
@@ -166,7 +272,7 @@ class Board {
         return [starts, ends, free];
     }
     
-    place333333(p, place) {
+    fill3(p, place) {
         const d = polyDistFromN(3);
         let starts, ends, free;
         // First vertex on board
@@ -198,7 +304,7 @@ class Board {
         return true;
     }
 
-    place4444(p, place) {
+    fill4(p, place) {
         const d = polyDistFromN(4);
         let starts, ends, free;
         // First vertex on board
@@ -230,7 +336,7 @@ class Board {
         return true;
     }
 
-    place666(p, place) {
+    fill6(p, place) {
         const d = polyDistFromN(6);
         let starts, ends, free;
         // First vertex on board
