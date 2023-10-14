@@ -21,10 +21,16 @@ class Point {
         return Math.sqrt(Math.pow(this.x-p.x,2) + Math.pow(this.y-p.y,2));
     }
 
-    draw(ctx) {
+    draw(ctx, rad, fillStyle) {
+        ctx.save();
+        if (fillStyle) {
+            ctx.fillStyle = fillStyle;
+        }
+        rad = rad || 2;
         ctx.beginPath();
-        ctx.arc(this.x, this.y, 2, 0, 2*Math.PI);
+        ctx.arc(this.x, this.y, rad, 0, 2*Math.PI);
         ctx.fill();
+        ctx.restore();
     }
 
     mag() {
@@ -99,15 +105,17 @@ function randomEdgePoint(cp, n) {
     return p;
 }
 
-let polyCount = 0;
+function ccw(a, b, c) {
+	return (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y);
+}
 
+let polyCount = 0;
 class Polygon {
     // Center point, edge point, number of edges
     constructor(cp, ep, n) {
         this.id = polyCount++;
         this.n = n;
         this.cp = cp;
-        this.points = [ep];
         this.edges = [];
         const theta = (Math.PI - 2*Math.PI/n) / 2;
         for (let i=0; i<n; i++) {
@@ -120,6 +128,20 @@ class Polygon {
             this.edges.push(ne);
             ep = np;
         }
+    }
+
+   contains(p) {
+        for (let i=0; i<this.edges.length; i++) {
+            // Not sure about edge direction, use center as reference point
+            let ref = ccw(this.edges[i].points[0], this.edges[i].points[1], this.cp);
+            ref = ref > 0 ? 1 : -1;
+            let trial = ccw(this.edges[i].points[0], this.edges[i].points[1], p);
+            trial = trial > 0 ? 1 : -1;
+            if (ref != trial) {
+                return false;
+            }
+        }
+        return true;
     }
 
     draw(ctx) {

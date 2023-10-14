@@ -2,3 +2,11 @@
 #canvas {
     border: 1px solid black;
 }
+
+#main {
+    display: flex;
+}
+
+#side {
+    padding-left: 10px;
+}

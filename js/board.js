@@ -57,6 +57,10 @@ class Board {
         this.ctx = canvas.getContext('2d');
         this.polys = [];
         this.points = [];
+        canvas.addEventListener('click', e => {
+            this.click(new Point(e.offsetX, e.offsetY));
+            this.repaint();
+        });
     }
 
     addPoly(poly) {
@@ -89,6 +93,16 @@ class Board {
                 this.points.at(-1).polys = [poly];
             }
         });
+    }
+
+    click(p) {
+        this.selpoint = null;
+        for (let i=0; i<this.points.length; i++) {
+            if (p.dist(this.points[i]) < 10) {
+                this.selpoint = this.points[i];
+                break;
+            }
+        }
     }
 
     nextFromCenter() {
@@ -320,8 +334,8 @@ class Board {
                 continue;
             }
             const n = td/(Math.PI/2);
-            if (nearby(n, 1) || nearby(n, 2) || nearby(n, 3) || nearby(n, 4)) {
-                const N = Math.round(n);
+            const N = Math.round(n);
+            if (nearby(n, N)) {
                 for (let j=0; j<N; j++) {
                     const t = ends[i] + Math.PI/4 + j*Math.PI/2;
                     const cp = new Point(p.x+d*Math.cos(t), p.y+d*Math.sin(t));
@@ -334,6 +348,26 @@ class Board {
             }
         }
         return true;
+    }
+
+    polyOverlapsTiling(poly) {
+        for (let i=0; i<this.points.length; i++) {
+            if (poly.contains(this.points[i])) {
+                let nearby = true;
+                for (let j=0; j<poly.edges.length; j++) {
+                    const edge = poly.edges[j];
+                    const [p0, p1] = edge.points;
+                    if (this.points[i].nearby(p0) || this.points[i].nearby(p1)) {
+                        nearby = false;
+                        break;
+                    }
+                }
+                if (nearby) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     fill6(p, place) {
@@ -352,13 +386,16 @@ class Board {
                 continue;
             }
             const n = td/(2*Math.PI/3);
-            if (nearby(n, 1) || nearby(n, 2) || nearby(n, 3)) {
-                const N = Math.round(n);
+            const N = Math.round(n);
+            if (nearby(n, N)) {
                 for (let j=0; j<N; j++) {
                     const t = ends[i] + Math.PI/3 + j*2*Math.PI/3;
                     const cp = new Point(p.x+d*Math.cos(t), p.y+d*Math.sin(t));
+                    const poly = new Polygon(cp, p, 6);
                     if (place) {
-                        this.addPoly(new Polygon(cp, p, 6));
+                        this.addPoly(poly);
+                    } else if (this.polyOverlapsTiling(poly)) {
+                        return false;
                     }
                 }
             } else {
@@ -371,5 +408,8 @@ class Board {
     repaint() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.polys.forEach(p => p.draw(this.ctx));
+        if (this.selpoint) {
+            this.selpoint.draw(this.ctx, 5, 'red');
+        }
     }
 }
