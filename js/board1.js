@@ -1,27 +1,23 @@
 
 import {$, $$} from './util.js';
-import {Board} from './board.js';
+import {noFillFn, Board} from './board.js';
 import {Point, Edge, Polygon, randomEdgePoint} from './primitives.js';
 
 window.addEventListener('load', () => {
     const canvas = $('#canvas');
     const board = new Board(canvas);
-    /*const cp = new Point(400, 300);
-    const ep = randomEdgePoint(cp, 6);
-    const p = new Polygon(cp, ep, 6);
-    board.addPoly(p);*/
-    /*board.placeLoop([(a,b) => board.place4444(a,b)]);
-    board.placeLoop([(a,b) => board.place4444(a,b)]);
-    board.placeLoop([(a,b) => board.place4444(a,b)]);*/
-    board.placeLoop([(a,b) => board.place666(a,b)]);
-    board.placeLoop([(a,b) => board.place666(a,b)]);
-    board.placeLoop([(a,b) => board.place666(a,b)]);
-    board.fillLoop([(a,b) => board.fill3(a,b)]);
-    board.placeLoop([(a,b) => board.place666(a,b)]);
+    board.loop([(a,b) => board.fill(a,6,b)]);
+    board.loop([(a,b) => board.fill(a,3,b)]);
+    board.loop([(a,b) => board.fill(a,4,b)]);
+    board.loop([(a,b) => board.fill(a,3,b)]);
+    board.loop([(a,b) => board.fill(a,4,b)]);
+    board.loop([(a,b) => board.fill(a,3,b)]);
+    board.loop([noFillFn, (a,b) => board.fill(a,4,b)]);
+    board.loop([(a,b) => board.placeOne(a,3,b)]);
+    board.loop([(a,b) => board.fill(a,6,b)]);
+    board.loop([(a,b) => board.fill(a,3,b)]);
+    board.loop([(a,b) => board.fill(a,3,b)]);
     board.repaint();
-    /*const poly = new Polygon(new Point(0,0), new Point(100, 100), 6);
-    console.log(poly.points);
-    console.log(poly.contains(new Point(10,10)));*/
     $$('button.fill').forEach(b => {
         b.addEventListener('click', e => {
             if (!board.selpoint) {

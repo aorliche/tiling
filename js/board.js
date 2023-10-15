@@ -1,5 +1,5 @@
 
-export {Board};
+export {noFillFn, Board};
 
 import {Point, Edge, Polygon, polyDistFromN, randomEdgePoint, thetaFromN} from './primitives.js';
 
@@ -11,20 +11,35 @@ function arrayContainsPoly(arr, p) {
     }
     return false;
 }
-
-function nearby(a, b) {
-    return Math.abs(a-b) < 1e-3;
-}
-
-function pointFreeAngle(p) {
-    let sum = 0;
+    
+// Get free angles around point
+// Choose a start point
+// Get all taken and free angles from 0 to 2pi
+function getFreeAngles(p) {
+    const starts = [];
+    const ends = [];
+    const free = [];
     p.polys.forEach(poly => {
-        const t = thetaFromN(poly.n);
-        sum += t;
+        const [start, end] = getStartEndAngles(poly, p);
+        starts.push(start);
+        ends.push(end);
     });
-    return 2*Math.PI - sum;
+    starts.sort((a, b) => a-b);
+    ends.sort((a, b) => a-b);
+    // Get free angles
+    for (let i=0; i<ends.length; i++) {
+        let td;
+        if (i == ends.length-1) {
+            td = starts[0] + 2*Math.PI - ends[i];
+        } else {
+            td = starts[i+1] - ends[i];
+        }
+        free.push(td);
+    }
+    return [starts, ends, free];
 }
 
+// Get start and end angles around a polygon
 function getStartEndAngles(poly, p) {
     const [p0, p1] = poly.pointsNextTo(p);
     const [d0, d1] = [p0.sub(p), p1.sub(p)];
@@ -45,10 +60,28 @@ function getStartEndAngles(poly, p) {
             t1 += 2*Math.PI;
         }
     }
+    // Start always less than end
     if (t1 < t0) {
         [t0, t1] = [t1, t0];
     }
     return [t0, t1];
+}
+
+function nearby(a, b) {
+    return Math.abs(a-b) < 1e-3;
+}
+
+function noFillFn() {
+    return true;
+}
+
+function pointFreeAngle(p) {
+    let sum = 0;
+    p.polys.forEach(poly => {
+        const t = thetaFromN(poly.n);
+        sum += t;
+    });
+    return 2*Math.PI - sum;
 }
 
 class Board {
@@ -105,106 +138,7 @@ class Board {
         }
     }
 
-    nextFromCenter() {
-        const cp = new Point(this.canvas.width/2, this.canvas.height/2);
-        let mind = Infinity;
-        let set = [];
-        this.points.forEach(p => {
-            if (nearby(pointFreeAngle(p), 0)) {
-                return;
-            }
-            const d = cp.sub(p).mag();
-            if (Math.abs(d-mind) < 1e-3) {
-                set.push(p);
-            } else if (d < mind) {
-                mind = d;
-                set = [p];
-            } 
-        });
-        return set;
-    }
-
-    placeLoop(fns) {
-        let points;
-        if (this.points.length == 0) {
-            points = [new Point(this.canvas.width/2, this.canvas.height/2)];
-            points[0].polys = [];
-        } else {
-            points = this.nextFromCenter();
-        }
-        for (let offset=0; offset<fns.length; offset++) {
-            let allgood = true;
-            for (let i=0; i<points.length; i++) {
-                const j = (i+offset) % fns.length;
-                const fn = fns[j];
-                if (!fn(points[i])) {
-                    allgood = false;
-                    break;
-                }
-            }
-            if (allgood) {
-                for (let k=0; k<points.length; k++) {
-                    const j = (k+offset) % fns.length;
-                    const fn = fns[j];
-                    if (!fn(points[k], true)) {
-                        console.log('Failed');
-                        throw 'bad';
-                    }
-                }
-                return;
-            }
-        }
-    }
-
-    place666(p, place) {
-        if (p.polys.length == 0) {
-            this.fill6(p, true);
-            return;
-        }
-        const placings = [];
-        for (let i=0; i<p.polys.length; i++) {
-            if (p.polys[i].n != 6) {
-                console.log('Not 6');
-                return false;
-            }
-            const cur = p.polys[i];
-            const [cstart, cend] = getStartEndAngles(cur, p);
-            const next = p.polys[(i+1) % p.polys.length];
-            const [nstart, nend] = getStartEndAngles(next, p);
-            console.log(cstart, cend, nstart, nend);
-            let t = nstart - cend;
-            // Start always less than 2pi but end may be greater
-            if (!nearby(t, 0) && t < 0) {
-                t += 2*Math.PI;
-            }
-            const n = t/(2*Math.PI/3);
-            const N = Math.round(n);
-            console.log(cend, nstart);
-            console.log(n, N);
-            if (!nearby(n, N)) {
-                console.log("Can't place");
-                return false;
-            }
-            for (let j=0; j<N; j++) {
-                placings.push(cend + j*2*Math.PI/3);
-            }
-        }
-        if (placings.length == 0) {
-            console.log('No placings');
-            return false;
-        }
-        if (place) {
-            const d = polyDistFromN(6);
-            for (let i=0; i<placings.length; i++) {
-                const t = placings[i] + Math.PI/3;
-                const cp = new Point(p.x+d*Math.cos(t), p.y+d*Math.sin(t));
-                this.addPoly(new Polygon(cp, p, 6));
-            }
-        }
-        return true;
-    }
-
-    fillLoop(fns) {
+    loop(fns) {
         let points;
         if (this.points.length == 0) {
             points = [new Point(this.canvas.width/2, this.canvas.height/2)];
@@ -236,118 +170,99 @@ class Board {
         }
         console.log('No good placement found');
     }
-
-    // Get free angles around point
-    // Choose a start point
-    // Get all taken and free angles from 0 to 2pi
-    getFreeAngles(p) {
-        const starts = [];
-        const ends = [];
-        const free = [];
-        p.polys.forEach(poly => {
-            const [p0, p1] = poly.pointsNextTo(p);
-            const d0 = p0.sub(p);
-            const d1 = p1.sub(p);
-            let t0 = Math.atan2(d0.y, d0.x);
-            let t1 = Math.atan2(d1.y, d1.x);
-            if (t0 < 0) {
-                t0 += 2*Math.PI;
-            }
-            if (t1 < 0) {
-                t1 += 2*Math.PI;
-            }
-            // Wraparound
-            // Assume no polys take more than pi radians (infinite circle)
-            if (Math.abs(t0 - t1) > Math.PI) {
-                if (t0 < Math.PI) {
-                    t0 += 2*Math.PI;
-                } else {
-                    t1 += 2*Math.PI;
-                }
-            }
-            if (t1 < t0) {
-                [t0, t1] = [t1, t0];
-            }
-            starts.push(t0);
-            ends.push(t1);
-        });
-        starts.sort((a, b) => a-b);
-        ends.sort((a, b) => a-b);
-        // Get free angles
-        for (let i=0; i<ends.length; i++) {
-            let td;
-            if (i == ends.length-1) {
-                td = starts[0] + 2*Math.PI - ends[i];
-            } else {
-                td = starts[i+1] - ends[i];
-            }
-            free.push(td);
+    
+    fill(p, M, place) {
+        const d = polyDistFromN(M);
+        const theta = thetaFromN(M);
+        let starts, ends, free;
+        // First vertex on board
+        if (p.polys.length == 0) {
+            [starts, ends, free] = [[0], [0], [2*Math.PI]];
+        // Not first vertex
+        } else {
+            [starts, ends, free] = getFreeAngles(p);
         }
-        return [starts, ends, free];
+        for (let i=0; i<ends.length; i++) {
+            const td = free[i];
+            if (nearby(td, 0)) {
+                continue;
+            }
+            const n = td/theta;
+            const N = Math.round(n);
+            if (nearby(n, N)) {
+                for (let j=0; j<N; j++) {
+                    const t = ends[i] + theta/2 + j*theta;
+                    const cp = new Point(p.x+d*Math.cos(t), p.y+d*Math.sin(t));
+                    const poly = new Polygon(cp, p, M);
+                    if (place) {
+                        this.addPoly(poly);
+                    } else if (this.polyOverlapsTiling(poly)) {
+                        return false;
+                    }
+                }
+            } else {
+                return false;
+            }
+        }
+        return true;
     }
     
-    fill3(p, place) {
-        const d = polyDistFromN(3);
-        let starts, ends, free;
-        // First vertex on board
-        if (p.polys.length == 0) {
-            [starts, ends, free] = [[0], [0], [2*Math.PI]];
-        // Not first vertex
-        } else {
-            [starts, ends, free] = this.getFreeAngles(p);
-        }
-        for (let i=0; i<ends.length; i++) {
-            const td = free[i];
-            if (nearby(td, 0)) {
-                continue;
+    nextFromCenter() {
+        const cp = new Point(this.canvas.width/2, this.canvas.height/2);
+        let mind = Infinity;
+        let set = [];
+        this.points.forEach(p => {
+            if (nearby(pointFreeAngle(p), 0)) {
+                return;
             }
-            const n = td/(Math.PI/3);
-            const N = Math.round(n);
-            if (nearby(n, N)) {
-                for (let j=0; j<N; j++) {
-                    const t = ends[i] + Math.PI/6 + j*Math.PI/3;
-                    const cp = new Point(p.x+d*Math.cos(t), p.y+d*Math.sin(t));
-                    if (place) {
-                        this.addPoly(new Polygon(cp, p, 3));
-                    }
-                }
-            } else {
-                return false;
-            }
-        }
-        return true;
+            const d = cp.sub(p).mag();
+            if (Math.abs(d-mind) < 1e-3) {
+                set.push(p);
+            } else if (d < mind) {
+                mind = d;
+                set = [p];
+            } 
+        });
+        set.sort((p1, p2) => {
+            return Math.atan2(p1.y - cp.y, p1.x - cp.x) - Math.atan2(p2.y - cp.y, p2.x - cp.x);
+        });
+        return set;
     }
 
-    fill4(p, place) {
-        const d = polyDistFromN(4);
+    // Add just one poly to a vertex
+    // Different from fill because it skips free areas that are insufficiently large
+    placeOne(p, M, place) {
+        const d = polyDistFromN(M);
+        const theta = thetaFromN(M);
+        let found = false;
         let starts, ends, free;
         // First vertex on board
         if (p.polys.length == 0) {
             [starts, ends, free] = [[0], [0], [2*Math.PI]];
         // Not first vertex
         } else {
-            [starts, ends, free] = this.getFreeAngles(p);
+            [starts, ends, free] = getFreeAngles(p);
         }
         for (let i=0; i<ends.length; i++) {
             const td = free[i];
             if (nearby(td, 0)) {
                 continue;
             }
-            const n = td/(Math.PI/2);
-            const N = Math.round(n);
-            if (nearby(n, N)) {
-                for (let j=0; j<N; j++) {
-                    const t = ends[i] + Math.PI/4 + j*Math.PI/2;
-                    const cp = new Point(p.x+d*Math.cos(t), p.y+d*Math.sin(t));
-                    if (place) {
-                        this.addPoly(new Polygon(cp, p, 4));
-                    }
+            const n = td/theta;
+            if (nearby(n, 1) || n > 1) {
+                const t = ends[i] + theta/2;
+                const cp = new Point(p.x+d*Math.cos(t), p.y+d*Math.sin(t));
+                const poly = new Polygon(cp, p, M);
+                if (place) {
+                    this.addPoly(poly);
+                } else if (this.polyOverlapsTiling(poly)) {
+                    continue;
                 }
-            } else {
-                return false;
-            }
+                found = true;
+                break;
+            } 
         }
-        return true;
+        return found;
     }
 
     polyOverlapsTiling(poly) {
@@ -368,41 +283,6 @@ class Board {
             }
         }
         return false;
-    }
-
-    fill6(p, place) {
-        const d = polyDistFromN(6);
-        let starts, ends, free;
-        // First vertex on board
-        if (p.polys.length == 0) {
-            [starts, ends, free] = [[0], [0], [2*Math.PI]];
-        // Not first vertex
-        } else {
-            [starts, ends, free] = this.getFreeAngles(p);
-        }
-        for (let i=0; i<ends.length; i++) {
-            const td = free[i];
-            if (nearby(td, 0)) {
-                continue;
-            }
-            const n = td/(2*Math.PI/3);
-            const N = Math.round(n);
-            if (nearby(n, N)) {
-                for (let j=0; j<N; j++) {
-                    const t = ends[i] + Math.PI/3 + j*2*Math.PI/3;
-                    const cp = new Point(p.x+d*Math.cos(t), p.y+d*Math.sin(t));
-                    const poly = new Polygon(cp, p, 6);
-                    if (place) {
-                        this.addPoly(poly);
-                    } else if (this.polyOverlapsTiling(poly)) {
-                        return false;
-                    }
-                }
-            } else {
-                return false;
-            }
-        }
-        return true;
     }
 
     repaint() {
