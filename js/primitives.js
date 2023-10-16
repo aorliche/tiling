@@ -109,7 +109,17 @@ function ccw(a, b, c) {
 	return (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y);
 }
 
+function arrayContainsPoint(a, p) {
+    for (let i=0; i<a.length; i++) {
+        if (a[i].nearby(p)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 let polyCount = 0;
+
 class Polygon {
     // Center point, edge point, number of edges
     constructor(cp, ep, n) {
@@ -147,6 +157,16 @@ class Polygon {
     draw(ctx) {
         this.edges.forEach(e => e.draw(ctx));
         this.cp.draw(ctx);
+        ctx.beginPath();
+        ctx.moveTo(this.points[0].x, this.points[0].y);
+        for (let i=1; i<this.points.length; i++) {
+            ctx.lineTo(this.points[i].x, this.points[i].y);
+        }
+        ctx.closePath();
+        ctx.save();
+        ctx.fillStyle = this.color ? this.color : '#f99';
+        ctx.fill();
+        ctx.restore();
     }
 
     pointsNextTo(p) {

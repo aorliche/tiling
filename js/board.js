@@ -127,6 +127,20 @@ class Board {
             }
         });
     }
+    
+    canonicalPoints(poly) {
+        if (poly.canonicalPoints) {
+            return poly.canonicalPoints;
+        }
+        const points = [];
+        this.points.forEach(p => {
+            if (arrayContainsPoly(p.polys, poly)) {
+                points.append(p);
+            }
+        });
+        poly.canonicalPoints = points;
+        return points;
+    }
 
     click(p) {
         this.selpoint = null;
@@ -205,6 +219,12 @@ class Board {
             }
         }
         return true;
+    }
+
+    neighbors(poly) {
+        for (let i=0; i<this.points.length; i++) {
+            
+        }
     }
     
     nextFromCenter() {
