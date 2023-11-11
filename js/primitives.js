@@ -1,5 +1,5 @@
 
-export {Point, Edge, Polygon, polyDistFromN, randomEdgePoint, thetaFromN};
+export {EDGE_LEN, Point, Edge, Polygon, polyDistFromN, randomEdgePoint, thetaFromN};
 
 let EDGE_LEN = 40;
 
@@ -73,8 +73,8 @@ class Edge {
         ctx.moveTo(this.points[0].x, this.points[0].y);
         ctx.lineTo(this.points[1].x, this.points[1].y);
         ctx.stroke();
-        this.points[0].draw(ctx);
-        this.points[1].draw(ctx);
+        //this.points[0].draw(ctx);
+        //this.points[1].draw(ctx);
     }
 
     equals(e) {
@@ -156,7 +156,7 @@ class Polygon {
 
     draw(ctx) {
         this.edges.forEach(e => e.draw(ctx));
-        this.cp.draw(ctx);
+        /*this.cp.draw(ctx);
         ctx.beginPath();
         ctx.moveTo(this.points[0].x, this.points[0].y);
         for (let i=1; i<this.points.length; i++) {
@@ -166,7 +166,7 @@ class Polygon {
         ctx.save();
         ctx.fillStyle = this.color ? this.color : '#f99';
         ctx.fill();
-        ctx.restore();
+        ctx.restore();*/
     }
 
     pointsNextTo(p) {

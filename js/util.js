@@ -1,5 +1,5 @@
 
-export {$, $$, ccw, dist, fillCircle, strokeCircle, Point};
+export {$, $$, approx, ccw, dist, fillCircle, strokeCircle, Point};
 
 const $ = (q) => document.querySelector(q);
 const $$ = (q) => [...document.querySelectorAll(q)];

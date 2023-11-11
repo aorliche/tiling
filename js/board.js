@@ -1,7 +1,8 @@
 
 export {noFillFn, Board};
 
-import {Point, Edge, Polygon, polyDistFromN, randomEdgePoint, thetaFromN} from './primitives.js';
+import {approx, dist, fillCircle, strokeCircle} from './util.js';
+import {EDGE_LEN, Point, Edge, Polygon, polyDistFromN, randomEdgePoint, thetaFromN} from './primitives.js';
 
 function arrayContainsPoly(arr, p) {
     for (let i=0; i<arr.length; i++) {
@@ -94,6 +95,7 @@ class Board {
             this.click(new Point(e.offsetX, e.offsetY));
             this.repaint();
         });
+        this.player = 'black';
     }
 
     addPoly(poly) {
@@ -308,8 +310,168 @@ class Board {
     repaint() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.polys.forEach(p => p.draw(this.ctx));
+        //this.points.forEach(p => p.draw(this.ctx));
         if (this.selpoint) {
             this.selpoint.draw(this.ctx, 5, 'red');
         }
+        this.points.forEach(p => {
+            if (p.player) {
+                if (p.player === 'black') {
+                    fillCircle(this.ctx, p, 5, 'black');
+                } else if (p.player === 'white') {
+                    fillCircle(this.ctx, p, 5, 'white');
+                    strokeCircle(this.ctx, p, 5, 'black');
+                }
+            } else if (p.hover) {
+                if (this.player == 'black') {
+                    fillCircle(this.ctx, p, 5, 'black');
+                } else {
+                    fillCircle(this.ctx, p, 5, 'white');
+                    strokeCircle(this.ctx, p, 5, 'black');
+                }
+            }
+
+        });
+    }
+    
+    hover(x, y) {
+        const hp = new Point(x, y);
+        this.points.forEach(p => {
+            if (p.player) {
+                p.hover = false;
+                return;
+            }
+            const d = dist(hp, p);
+            const h = d < EDGE_LEN/2;
+            p.hover = h;
+        });
+    }
+    
+    click(x, y) {
+        const cp = new Point(x, y);
+        this.points.forEach(p => {
+            if (p.player) {
+                return;
+            }
+            const d = dist(p, cp);
+            const h = d < EDGE_LEN/2;
+            if (h) {
+                const sav = this.savePoints();
+                p.player = this.player;
+                this.player = this.player == 'black' ? 'white' : 'black';
+                this.cullCaptured(this.player);
+                if (this.pointsInHistory(this.savePoints())) {
+                    this.player = this.player == 'black' ? 'white' : 'black';
+                    this.loadPoints(sav);
+                    return;
+                }
+                this.history.push(JSON.stringify(sav));
+            }
+        });
+    }
+
+    pointsInHistory(ps) {
+        ps = JSON.stringify(ps);
+        for (let i=0; i<this.history.length; i++) {
+            const h = this.history[i];
+            if (h == ps) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    savePoints() {
+        const ps = [];
+        this.points.forEach(p => {
+           ps.push({id: p.id, player: p.player ? p.player : null}); 
+        });
+        return ps;
+    }
+
+    loadPoints(ps) {
+        this.points.forEach(p => {
+            for (let i=0; i<ps.length; i++) {
+                if (ps[i].id == p.id) {
+                    p.player = ps[i].player;
+                    break;
+                }
+            }
+        });
+    }
+    
+    initNeighbors() {
+        function arrContainsPoint(arr, p) {
+            for (let i=0; i<arr.length; i++) {
+                if (arr[i].id == p.id) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        this.neighbors = {};
+        this.id2point = {};
+        this.history = [];
+        let id = 0;
+        this.points.forEach(p => {
+            p.id = id++;
+            this.id2point[p.id] = p;
+        })
+        this.points.forEach(p1 => {
+            this.points.forEach(p2 => {
+                if (approx(p1.dist(p2), EDGE_LEN)) {
+                    if (!this.neighbors[p1.id]) {
+                        this.neighbors[p1.id] = [];
+                    }
+                    if (!this.neighbors[p2.id]) {
+                        this.neighbors[p2.id] = [];
+                    }
+                    if (this.neighbors[p1.id].indexOf(p2.id) == -1) {   
+                        this.neighbors[p1.id].push(p2.id);
+                    }
+                    if (this.neighbors[p2.id].indexOf(p1.id) == -1) {
+                        this.neighbors[p2.id].push(p1.id);
+                    }
+                }
+            });
+        });
+    }
+    
+    cullCaptured(player) {
+        // Try to find a connected empty space
+        function cull(pid, neighbors, visited, id2point) {
+            const frontier = [pid];
+            const region = new Set();
+            let foundempty = false;
+            while (frontier.length > 0) {
+                const id = frontier.pop();
+                const ns = neighbors[id];
+                for (let i=0; i<ns.length; i++) {
+                    if (frontier.includes(ns[i]) || region.has(ns[i])) {
+                        continue;
+                    }
+                    const ip = id2point[ns[i]];
+                    if (ip.player == player || !ip.player) {
+                        if (!ip.player) {
+                            foundempty = true;
+                        }
+                        frontier.push(ns[i]);
+                    }
+                }
+                visited.add(id);
+                region.add(id);
+            }
+            if (!foundempty) {
+                region.forEach(id => {
+                    id2point[id].player = null;
+                });
+            }
+        }
+        const visited = new Set();
+        this.points.forEach(p => {
+            if (!visited.has(p.id) && p.player == player) {
+                cull(p.id, this.neighbors, visited, this.id2point);
+            }
+        });
     }
 }
